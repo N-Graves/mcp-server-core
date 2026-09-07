@@ -42,4 +42,6 @@ export {
   type CoverageReport,
 } from "./coverage.js";
 
-export { requireEnv, optionalEnv, pageSize, httpUrl } from "./validate.js";
+export { Dispatcher, type DispatchableOperation } from "./dispatch.js";
+
+export { requireEnv, optionalEnv, pageSize, pageNumber, httpUrl, boundedText } from "./validate.js";
