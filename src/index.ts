@@ -1,5 +1,5 @@
 /**
- * @nasdigital/mcp-server-core
+ * @nasdigitaluk/mcp-server-core
  *
  * The shared spine for a family of Model Context Protocol servers: a fetch
  * layer that cannot hang or leak, a pluggable authorization interface that

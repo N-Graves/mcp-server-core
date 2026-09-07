@@ -1,6 +1,9 @@
 {
-  "name": "@nasdigital/mcp-server-core",
+  "name": "@nasdigitaluk/mcp-server-core",
   "version": "0.1.0",
+  "publishConfig": {
+    "access": "public"
+  },
   "description": "Shared spine for Model Context Protocol servers: a fetch layer that cannot hang or leak, pluggable authorization that permits everything by default, error sanitisation, one dispatch choke point, and machine-checkable API coverage.",
   "type": "module",
   "main": "dist/index.js",

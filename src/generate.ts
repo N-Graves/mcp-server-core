@@ -1,7 +1,7 @@
 /**
  * Turn a provider's OpenAPI document into an operation catalogue.
  *
- * Build-time only — exported from "@nasdigital/mcp-server-core/generate" so it
+ * Build-time only — exported from "@nasdigitaluk/mcp-server-core/generate" so it
  * never ends up in a server's runtime bundle.
  *
  * Each server supplies its own exclusion rules, because "which of these can an
@@ -245,7 +245,7 @@ export function buildCatalogue(
 /** Render a catalogue as the TypeScript module a server imports. */
 export function renderCatalogue(result: BuildResult, header: string): string {
   return `${header}
-import type { Operation } from "@nasdigital/mcp-server-core";
+import type { Operation } from "@nasdigitaluk/mcp-server-core";
 
 export interface CataloguedOperation extends Operation {
   tags: string[];

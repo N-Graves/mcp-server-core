@@ -1,4 +1,4 @@
-# @nasdigital/mcp-server-core
+# @nasdigitaluk/mcp-server-core
 
 The shared spine for a family of [Model Context Protocol](https://modelcontextprotocol.io) servers.
 
@@ -7,7 +7,7 @@ It gives you a fetch layer that cannot hang, cannot read an unbounded body and c
 MIT licensed. No runtime dependencies beyond the MCP SDK and zod.
 
 ```bash
-npm install @nasdigital/mcp-server-core
+npm install @nasdigitaluk/mcp-server-core
 ```
 
 ## Why it exists
@@ -31,7 +31,7 @@ It was extracted from nine MCP servers that had each copied the same three modul
 import { z } from "zod";
 import {
   runServer, HttpClient, authorizerFromEnv, requireEnv, pageSize, ToolError,
-} from "@nasdigital/mcp-server-core";
+} from "@nasdigitaluk/mcp-server-core";
 
 const http = new HttpClient({
   baseUrl: "https://api.example.com",
@@ -80,7 +80,7 @@ MCP_NO_DESTRUCTIVE=1   # allow writes, refuse deletes
 For anything else, implement the interface. It is one method:
 
 ```ts
-import { type Authorizer, AuthorizationError } from "@nasdigital/mcp-server-core";
+import { type Authorizer, AuthorizationError } from "@nasdigitaluk/mcp-server-core";
 
 const officeHours: Authorizer = {
   authorize({ tool, action }) {
@@ -99,7 +99,7 @@ const officeHours: Authorizer = {
 "This server covers the whole API" is worth nothing as a sentence in a README, because the provider adds an endpoint and the sentence silently becomes false. Declare a catalogue instead and let a test check it:
 
 ```ts
-import { checkCoverage, formatCoverage, operationsFromOpenApi } from "@nasdigital/mcp-server-core";
+import { checkCoverage, formatCoverage, operationsFromOpenApi } from "@nasdigitaluk/mcp-server-core";
 import spec from "./vendor/provider-openapi.json" with { type: "json" };
 
 const report = checkCoverage(CATALOGUE, operationsFromOpenApi(spec));
