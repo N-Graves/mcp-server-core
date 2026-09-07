@@ -1,0 +1,55 @@
+{
+  "name": "@nasdigital/mcp-server-core",
+  "version": "0.1.0",
+  "description": "Shared spine for Model Context Protocol servers: a fetch layer that cannot hang or leak, pluggable authorization that permits everything by default, error sanitisation, one dispatch choke point, and machine-checkable API coverage.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc --noEmit",
+    "prepublishOnly": "npm run build && npm test"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^3.24.1",
+    "zod-to-json-schema": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  },
+  "author": "Nathan Graves",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/N-Graves/mcp-server-core.git"
+  },
+  "bugs": {
+    "url": "https://github.com/N-Graves/mcp-server-core/issues"
+  },
+  "homepage": "https://github.com/N-Graves/mcp-server-core#readme",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "llm",
+    "ai-tools"
+  ]
+}
