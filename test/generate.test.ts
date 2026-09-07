@@ -161,6 +161,36 @@ describe("buildCatalogue", () => {
     expect(r.undeclaredPathParams).toEqual([]);
   });
 
+  it("flattens OAuth scopes out of the security block", () => {
+    // Turns an unexplained 403 into an actionable one. Etsy is the clearest
+    // case: exactly one of its thirteen deletes needs listings_d, so not
+    // requesting that scope blocks the catastrophic one and nothing else.
+    const secured = {
+      paths: {
+        "/listings/{id}": {
+          delete: {
+            operationId: "deleteListing",
+            security: [{ oauth2: ["listings_d"] }, { apiKey: [] }],
+          },
+          get: { operationId: "getListing" },
+        },
+      },
+    };
+    const ops = buildCatalogue(secured).operations;
+    expect(ops.find((o) => o.id === "deleteListing")!.scopes).toEqual(["listings_d"]);
+    // No security block at all means public, not "unknown scope".
+    expect(ops.find((o) => o.id === "getListing")!.scopes).toEqual([]);
+  });
+
+  it("deduplicates scopes repeated across security options", () => {
+    const dup = {
+      paths: {
+        "/x": { get: { security: [{ a: ["shops_r"] }, { b: ["shops_r", "shops_w"] }] } },
+      },
+    };
+    expect(buildCatalogue(dup).operations[0]!.scopes.sort()).toEqual(["shops_r", "shops_w"]);
+  });
+
   it("does not choke on a $ref it cannot resolve", () => {
     const broken = {
       paths: { "/x": { get: { parameters: [{ $ref: "#/components/parameters/missing" }] } } },

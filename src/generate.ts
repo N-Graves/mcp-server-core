@@ -22,6 +22,19 @@ export interface SpecOperation {
   pathParams: string[];
   queryParams: string[];
   hasBody: boolean;
+  /**
+   * OAuth scopes the operation requires, flattened from the spec's `security`
+   * block. Empty means public, or that the spec does not say.
+   *
+   * Worth carrying because it turns an unexplained 403 into an actionable one.
+   * Etsy is the clearest case: of its thirteen DELETE endpoints, exactly ONE
+   * needs the `listings_d` scope - deleting a whole live listing - and the
+   * other twelve ride on scopes you already hold to edit anything at all. Not
+   * requesting `listings_d` therefore makes exactly the catastrophic delete
+   * impossible while leaving normal work intact, and that is only obvious if
+   * the scopes are visible.
+   */
+  scopes: string[];
 }
 
 export interface CatalogueEntry extends SpecOperation {
@@ -186,6 +199,14 @@ export function buildCatalogue(
         pathParams: [...new Set([...declaredPath, ...templatePath])],
         queryParams: params.filter((p: any) => p?.in === "query").map((p: any) => String(p.name)),
         hasBody: Boolean(o.requestBody),
+        scopes: [
+          ...new Set(
+            (Array.isArray(o.security) ? o.security : [])
+              .flatMap((s: any) => Object.values(s ?? {}))
+              .flat()
+              .filter((s: unknown): s is string => typeof s === "string"),
+          ),
+        ],
       };
 
       const rule = exclusions.find((r) => r.match(entry));
@@ -234,6 +255,8 @@ export interface CataloguedOperation extends Operation {
   hasBody: boolean;
   /** Consequence, not HTTP verb: destructive means irreversible OR chargeable. */
   action: "read" | "write" | "destructive";
+  /** OAuth scopes required. Empty means public, or unstated by the spec. */
+  scopes: string[];
 }
 
 export const OPERATIONS: CataloguedOperation[] = ${JSON.stringify(result.operations, null, 2)};

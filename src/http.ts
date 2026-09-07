@@ -106,7 +106,18 @@ export class HttpClient {
     this.doFetch = opts.fetchImpl ?? globalThis.fetch;
   }
 
-  async request<T = unknown>(path: string, opts: RequestOptions = {}): Promise<T> {
+  /**
+   * Like request(), but also returns the response status and headers.
+   *
+   * Needed because some providers put the result somewhere other than the
+   * body: LinkedIn returns a newly created post's URN in the x-restli-id
+   * RESPONSE HEADER and leaves the body empty, so a client that only reads
+   * bodies has no way to tell the caller what it just published.
+   */
+  async requestWithMeta<T = unknown>(
+    path: string,
+    opts: RequestOptions = {},
+  ): Promise<{ data: T; status: number; headers: Headers }> {
     const url = new URL(this.baseUrl + (path.startsWith("/") ? path : `/${path}`));
     for (const [k, v] of Object.entries(opts.query ?? {})) {
       if (v === undefined || v === null || v === "") continue;
@@ -160,12 +171,16 @@ export class HttpClient {
       throw new HttpError(`${describeStatus(res.status)} (HTTP ${res.status})`, res.status, text);
     }
 
-    if (!text) return undefined as T;
+    if (!text) return { data: undefined as T, status: res.status, headers: res.headers };
     try {
-      return JSON.parse(text) as T;
+      return { data: JSON.parse(text) as T, status: res.status, headers: res.headers };
     } catch {
       throw new HttpError("The provider returned a body that was not valid JSON.", res.status, text);
     }
+  }
+
+  async request<T = unknown>(path: string, opts: RequestOptions = {}): Promise<T> {
+    return (await this.requestWithMeta<T>(path, opts)).data;
   }
 
   /**

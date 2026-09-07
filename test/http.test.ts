@@ -151,4 +151,32 @@ describe("HttpClient", () => {
     const c = new HttpClient({ baseUrl: "https://x.test", fetchImpl: stubFetch({ body: "<html>nope" }) });
     await expect(c.get("/x")).rejects.toThrow(/not valid JSON/i);
   });
+
+  it("can hand back response headers, not only the body", async () => {
+    // Some providers put the result somewhere other than the body: LinkedIn
+    // returns a newly created post's URN in the x-restli-id header and leaves
+    // the body empty, so a client that only reads bodies cannot tell the
+    // caller what it just published.
+    const c = new HttpClient({
+      baseUrl: "https://x.test",
+      fetchImpl: (async () =>
+        new Response("", {
+          status: 201,
+          headers: { "x-restli-id": "urn:li:share:123" },
+        })) as unknown as typeof fetch,
+    });
+    const res = await c.requestWithMeta("/posts", { method: "POST", body: {} });
+    expect(res.status).toBe(201);
+    expect(res.headers.get("x-restli-id")).toBe("urn:li:share:123");
+    expect(res.data).toBeUndefined();
+  });
+
+  it("still refuses a non-2xx through the metadata path", async () => {
+    // The status is not a way around the error handling.
+    const c = new HttpClient({
+      baseUrl: "https://x.test",
+      fetchImpl: (async () => new Response("nope", { status: 403 })) as unknown as typeof fetch,
+    });
+    await expect(c.requestWithMeta("/x")).rejects.toThrow(/HTTP 403/);
+  });
 });
