@@ -114,6 +114,39 @@ describe("HttpClient", () => {
     expect(seen).not.toContain("blank=");
   });
 
+  it("resolves dynamic headers on every request, not once at construction", async () => {
+    // X's OAuth2 user tokens last about two hours. A static Authorization
+    // header is correct for the first two hours and silently wrong afterwards.
+    let n = 0;
+    const seen: (string | undefined)[] = [];
+    const c = new HttpClient({
+      baseUrl: "https://x.test",
+      dynamicHeaders: () => ({ Authorization: `Bearer token-${++n}` }),
+      fetchImpl: (async (_url: string, opts: RequestInit = {}) => {
+        seen.push((opts.headers as Record<string, string>).Authorization);
+        return new Response("{}", { status: 200 });
+      }) as unknown as typeof fetch,
+    });
+    await c.get("/a");
+    await c.get("/b");
+    expect(seen).toEqual(["Bearer token-1", "Bearer token-2"]);
+  });
+
+  it("lets a per-call header override a dynamic one", async () => {
+    let seen: string | undefined;
+    const c = new HttpClient({
+      baseUrl: "https://x.test",
+      headers: { "X-Static": "s" },
+      dynamicHeaders: () => ({ Authorization: "Bearer dynamic" }),
+      fetchImpl: (async (_url: string, opts: RequestInit = {}) => {
+        seen = (opts.headers as Record<string, string>).Authorization;
+        return new Response("{}", { status: 200 });
+      }) as unknown as typeof fetch,
+    });
+    await c.request("/a", { headers: { Authorization: "Bearer explicit" } });
+    expect(seen).toBe("Bearer explicit");
+  });
+
   it("reports invalid JSON as such rather than crashing", async () => {
     const c = new HttpClient({ baseUrl: "https://x.test", fetchImpl: stubFetch({ body: "<html>nope" }) });
     await expect(c.get("/x")).rejects.toThrow(/not valid JSON/i);

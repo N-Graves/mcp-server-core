@@ -20,6 +20,16 @@ export interface HttpClientOptions {
   baseUrl: string;
   /** Sent on every request. Merged with, and overridden by, per-call headers. */
   headers?: Record<string, string>;
+  /**
+   * Resolved before every request, and merged over the static headers.
+   *
+   * This is how an expiring credential is handled. X's OAuth2 user tokens last
+   * about two hours, so a static Authorization header is correct for the first
+   * two hours of a session and silently wrong afterwards - and the failure
+   * arrives as a 401 the caller cannot do anything about. A provider that
+   * refreshes supplies the header here instead.
+   */
+  dynamicHeaders?: () => Promise<Record<string, string>> | Record<string, string>;
   /** Hard ceiling per request. Default 30s. */
   timeoutMs?: number;
   /** Refuse a response body larger than this. Default 8 MiB. */
@@ -82,6 +92,7 @@ function describeStatus(status: number): string {
 export class HttpClient {
   private readonly baseUrl: string;
   private readonly baseHeaders: Record<string, string>;
+  private readonly dynamicHeaders?: HttpClientOptions["dynamicHeaders"];
   private readonly timeoutMs: number;
   private readonly maxBytes: number;
   private readonly doFetch: typeof fetch;
@@ -89,6 +100,7 @@ export class HttpClient {
   constructor(opts: HttpClientOptions) {
     this.baseUrl = opts.baseUrl.replace(/\/+$/, "");
     this.baseHeaders = opts.headers ?? {};
+    this.dynamicHeaders = opts.dynamicHeaders;
     this.timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     this.maxBytes = opts.maxBytes ?? DEFAULT_MAX_BYTES;
     this.doFetch = opts.fetchImpl ?? globalThis.fetch;
@@ -101,7 +113,10 @@ export class HttpClient {
       url.searchParams.set(k, String(v));
     }
 
-    const headers: Record<string, string> = { ...this.baseHeaders, ...opts.headers };
+    // Resolved per request so an expiring credential can refresh itself.
+    // Explicit per-call headers still win, so a caller can override.
+    const dynamic = this.dynamicHeaders ? await this.dynamicHeaders() : {};
+    const headers: Record<string, string> = { ...this.baseHeaders, ...dynamic, ...opts.headers };
     let body: string | undefined;
     if (opts.body !== undefined) {
       body = JSON.stringify(opts.body);

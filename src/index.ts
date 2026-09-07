@@ -44,4 +44,6 @@ export {
 
 export { Dispatcher, type DispatchableOperation } from "./dispatch.js";
 
+export { TokenStore } from "./token-store.js";
+
 export { requireEnv, optionalEnv, pageSize, pageNumber, httpUrl, boundedText } from "./validate.js";
