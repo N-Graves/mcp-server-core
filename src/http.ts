@@ -20,6 +20,16 @@ export interface HttpClientOptions {
   baseUrl: string;
   /** Sent on every request. Merged with, and overridden by, per-call headers. */
   headers?: Record<string, string>;
+  /**
+   * Resolved before every request, and merged over the static headers.
+   *
+   * This is how an expiring credential is handled. X's OAuth2 user tokens last
+   * about two hours, so a static Authorization header is correct for the first
+   * two hours of a session and silently wrong afterwards - and the failure
+   * arrives as a 401 the caller cannot do anything about. A provider that
+   * refreshes supplies the header here instead.
+   */
+  dynamicHeaders?: () => Promise<Record<string, string>> | Record<string, string>;
   /** Hard ceiling per request. Default 30s. */
   timeoutMs?: number;
   /** Refuse a response body larger than this. Default 8 MiB. */
@@ -82,6 +92,7 @@ function describeStatus(status: number): string {
 export class HttpClient {
   private readonly baseUrl: string;
   private readonly baseHeaders: Record<string, string>;
+  private readonly dynamicHeaders?: HttpClientOptions["dynamicHeaders"];
   private readonly timeoutMs: number;
   private readonly maxBytes: number;
   private readonly doFetch: typeof fetch;
@@ -89,19 +100,34 @@ export class HttpClient {
   constructor(opts: HttpClientOptions) {
     this.baseUrl = opts.baseUrl.replace(/\/+$/, "");
     this.baseHeaders = opts.headers ?? {};
+    this.dynamicHeaders = opts.dynamicHeaders;
     this.timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     this.maxBytes = opts.maxBytes ?? DEFAULT_MAX_BYTES;
     this.doFetch = opts.fetchImpl ?? globalThis.fetch;
   }
 
-  async request<T = unknown>(path: string, opts: RequestOptions = {}): Promise<T> {
+  /**
+   * Like request(), but also returns the response status and headers.
+   *
+   * Needed because some providers put the result somewhere other than the
+   * body: LinkedIn returns a newly created post's URN in the x-restli-id
+   * RESPONSE HEADER and leaves the body empty, so a client that only reads
+   * bodies has no way to tell the caller what it just published.
+   */
+  async requestWithMeta<T = unknown>(
+    path: string,
+    opts: RequestOptions = {},
+  ): Promise<{ data: T; status: number; headers: Headers }> {
     const url = new URL(this.baseUrl + (path.startsWith("/") ? path : `/${path}`));
     for (const [k, v] of Object.entries(opts.query ?? {})) {
       if (v === undefined || v === null || v === "") continue;
       url.searchParams.set(k, String(v));
     }
 
-    const headers: Record<string, string> = { ...this.baseHeaders, ...opts.headers };
+    // Resolved per request so an expiring credential can refresh itself.
+    // Explicit per-call headers still win, so a caller can override.
+    const dynamic = this.dynamicHeaders ? await this.dynamicHeaders() : {};
+    const headers: Record<string, string> = { ...this.baseHeaders, ...dynamic, ...opts.headers };
     let body: string | undefined;
     if (opts.body !== undefined) {
       body = JSON.stringify(opts.body);
@@ -145,12 +171,16 @@ export class HttpClient {
       throw new HttpError(`${describeStatus(res.status)} (HTTP ${res.status})`, res.status, text);
     }
 
-    if (!text) return undefined as T;
+    if (!text) return { data: undefined as T, status: res.status, headers: res.headers };
     try {
-      return JSON.parse(text) as T;
+      return { data: JSON.parse(text) as T, status: res.status, headers: res.headers };
     } catch {
       throw new HttpError("The provider returned a body that was not valid JSON.", res.status, text);
     }
+  }
+
+  async request<T = unknown>(path: string, opts: RequestOptions = {}): Promise<T> {
+    return (await this.requestWithMeta<T>(path, opts)).data;
   }
 
   /**

@@ -1,5 +1,5 @@
 /**
- * @nasdigital/mcp-server-core
+ * @nasdigitaluk/mcp-server-core
  *
  * The shared spine for a family of Model Context Protocol servers: a fetch
  * layer that cannot hang or leak, a pluggable authorization interface that
@@ -42,4 +42,8 @@ export {
   type CoverageReport,
 } from "./coverage.js";
 
-export { requireEnv, optionalEnv, pageSize, httpUrl } from "./validate.js";
+export { Dispatcher, type DispatchableOperation } from "./dispatch.js";
+
+export { TokenStore } from "./token-store.js";
+
+export { requireEnv, optionalEnv, pageSize, pageNumber, httpUrl, boundedText } from "./validate.js";
