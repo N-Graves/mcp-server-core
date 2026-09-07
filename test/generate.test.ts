@@ -96,4 +96,76 @@ describe("buildCatalogue", () => {
     const r = buildCatalogue(spec, { toolFor: () => "thing_call" });
     expect(r.operations.every((o) => o.status !== "covered" || o.tool === "thing_call")).toBe(true);
   });
+
+  it("resolves $ref parameters", () => {
+    // Not an edge case: Printify declares EVERY parameter this way. A naive
+    // `p.in === "path"` filter drops all of them, because a $ref has no `in`,
+    // and the catalogue then claims the operation takes no path parameters.
+    const refSpec = {
+      components: {
+        parameters: {
+          shop_id: { in: "path", name: "shop_id" },
+          limit: { in: "query", name: "limit" },
+        },
+      },
+      paths: {
+        "/shops/{shop_id}/products": {
+          get: {
+            operationId: "listProducts",
+            parameters: [
+              { $ref: "#/components/parameters/shop_id" },
+              { $ref: "#/components/parameters/limit" },
+            ],
+          },
+        },
+      },
+    };
+    const op = buildCatalogue(refSpec).operations[0]!;
+    expect(op.pathParams).toEqual(["shop_id"]);
+    expect(op.queryParams).toEqual(["limit"]);
+  });
+
+  it("follows a $ref that points at another $ref", () => {
+    const chained = {
+      components: {
+        parameters: {
+          real: { in: "path", name: "id" },
+          alias: { $ref: "#/components/parameters/real" },
+        },
+      },
+      paths: { "/x/{id}": { get: { parameters: [{ $ref: "#/components/parameters/alias" }] } } },
+    };
+    expect(buildCatalogue(chained).operations[0]!.pathParams).toEqual(["id"]);
+  });
+
+  it("takes path parameters from the route template even when undeclared", () => {
+    // A spec can simply fail to declare one. The template is the authority on
+    // what the URL contains - without this the request goes out with a literal
+    // "{id}" in it.
+    const undeclared = { paths: { "/things/{id}": { get: { operationId: "getThing" } } } };
+    const r = buildCatalogue(undeclared);
+    expect(r.operations[0]!.pathParams).toEqual(["id"]);
+    expect(r.undeclaredPathParams).toEqual(["GET /things/{id} → {id}"]);
+  });
+
+  it("does not duplicate a parameter that is both declared and in the template", () => {
+    const both = {
+      paths: {
+        "/things/{id}": {
+          get: { operationId: "getThing", parameters: [{ in: "path", name: "id" }] },
+        },
+      },
+    };
+    const r = buildCatalogue(both);
+    expect(r.operations[0]!.pathParams).toEqual(["id"]);
+    expect(r.undeclaredPathParams).toEqual([]);
+  });
+
+  it("does not choke on a $ref it cannot resolve", () => {
+    const broken = {
+      paths: { "/x": { get: { parameters: [{ $ref: "#/components/parameters/missing" }] } } },
+    };
+    expect(() => buildCatalogue(broken)).not.toThrow();
+    expect(buildCatalogue(broken).operations[0]!.queryParams).toEqual([]);
+  });
 });

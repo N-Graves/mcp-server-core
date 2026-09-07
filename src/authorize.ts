@@ -31,9 +31,18 @@ export interface AuthorizationRequest {
   /** The tool being invoked, e.g. "devto_create_article". */
   tool: string;
   /**
-   * A coarse label for what the tool does. Servers in this family use
-   * "read" for anything non-mutating and "write" for anything that changes
-   * state on the provider; "destructive" for anything that removes something.
+   * A coarse label for what the tool does.
+   *
+   *   read         nothing changes on the provider.
+   *   write        state changes, and the change can be undone.
+   *   destructive  the change CANNOT be undone, or it costs money.
+   *
+   * That last definition is deliberately wider than "deletes something".
+   * Printify's order endpoints place real, chargeable orders and send them to
+   * production; Dev.to's unpublish takes a live article down. Neither is a
+   * deletion, and an operator who sets MCP_NO_DESTRUCTIVE plainly means to
+   * stop both. Grouping them by consequence rather than by HTTP verb is what
+   * makes that setting mean anything.
    */
   action: "read" | "write" | "destructive";
   /** The arguments as received. Useful for value-dependent policies. */
